@@ -1,5 +1,7 @@
 package com.lyncc.netty.hello;
 
-public class HelloWorldServerHandler {
+import io.netty.channel.ChannelInboundHandlerAdapter;
+
+public class HelloWorldServerHandler extends ChannelInboundHandlerAdapter{
 
 }
