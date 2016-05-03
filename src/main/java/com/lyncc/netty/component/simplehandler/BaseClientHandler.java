@@ -21,7 +21,6 @@ public class BaseClientHandler extends SimpleChannelInboundHandler<String>{
          cause.printStackTrace();
          ctx.close();
      }
-
    
 
 }
