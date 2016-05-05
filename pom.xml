@@ -33,10 +33,5 @@
 	<artifactId>netty-all</artifactId>
 	<version>4.0.21.Final</version>
      </dependency>
-     <dependency>
-	  <groupId>net.bytebuddy</groupId>
-	  <artifactId>byte-buddy</artifactId>
-	  <version>1.2.3</version>
-     </dependency>
   </dependencies>
 </project>
