@@ -22,11 +22,6 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 @Sharable
 public class SubReqServerHandler extends ChannelInboundHandlerAdapter {
 
-    @Override
-    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        // TODO Auto-generated method stub
-        super.handlerAdded(ctx);
-    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
