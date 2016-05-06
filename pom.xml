@@ -1,40 +1,40 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.study</groupId>
-  <artifactId>netty-study</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <packaging>jar</packaging>
+	<groupId>com.study</groupId>
+	<artifactId>netty-study</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
 
-  <name>netty-study</name>
-  <url>http://maven.apache.org</url>
-   
-  <repositories>
-    <repository>
-     	 <id>osc</id>
-         <url>http://maven.oschina.net/content/groups/public/</url>
-    </repository>
-  </repositories>
+	<name>netty-study</name>
+	<url>http://maven.apache.org</url>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <version.jackson.core>2.6.3</version.jackson.core>
-  </properties>
+	<repositories>
+		<repository>
+			<id>osc</id>
+			<url>http://maven.oschina.net/content/groups/public/</url>
+		</repository>
+	</repositories>
 
-  <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.10</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-	<groupId>io.netty</groupId>
-	<artifactId>netty-all</artifactId>
-	<version>4.0.21.Final</version>
-     </dependency>
-     <dependency>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<version.jackson.core>2.6.3</version.jackson.core>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.10</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.0.21.Final</version>
+		</dependency>
+		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-core</artifactId>
 			<version>${version.jackson.core}</version>
@@ -44,5 +44,10 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>${version.jackson.core}</version>
 		</dependency>
-  </dependencies>
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>2.6.1</version>
+		</dependency>
+	</dependencies>
 </project>

@@ -1,0 +1,9 @@
+package netty;  
+option java_package = "com.lyncc.netty.codec.protobuf";  
+option java_outer_classname = "SubscribeRespProto";  
+  
+message SubscribeReq{  
+    required int32 subReqID = 1;  
+    required int23 respCode = 2;  
+    required string desc = 3;  
+} 
