@@ -1,4 +1,4 @@
-package com.lyncc.netty.heartbeat;
+package com.lyncc.netty.heartbeat2;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;

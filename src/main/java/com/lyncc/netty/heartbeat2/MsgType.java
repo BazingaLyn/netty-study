@@ -1,4 +1,4 @@
-package com.lyncc.netty.heartbeat;
+package com.lyncc.netty.heartbeat2;
 
 public enum MsgType {
     

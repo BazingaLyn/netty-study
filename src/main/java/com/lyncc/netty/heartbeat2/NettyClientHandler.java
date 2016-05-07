@@ -1,4 +1,4 @@
-package com.lyncc.netty.heartbeat;
+package com.lyncc.netty.heartbeat2;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
