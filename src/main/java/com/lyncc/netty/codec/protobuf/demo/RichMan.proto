@@ -1,0 +1,26 @@
+package netty;
+
+option java_package = "com.lyncc.netty.codec.protobuf.demo";
+option java_outer_classname = "RichManProto";
+
+message RichMan {
+
+   required int32 id = 1;
+   required string name = 2;
+   optional string email = 3;
+   
+   enum CarType {
+     AUDI = 0;
+     BENZ = 1;
+     LAMBORGHINI = 2;
+     DASAUTO = 3;
+   }
+   
+   message Car {
+      required string name = 1;
+      optional CarType type = 2 [default = BENZ];
+   }
+   
+   repeated Car cars = 4;
+   
+}
