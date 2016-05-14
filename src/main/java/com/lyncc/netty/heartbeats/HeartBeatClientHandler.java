@@ -1,4 +1,6 @@
-package com.lyncc.netty.heartbeat;
+package com.lyncc.netty.heartbeats;
+
+import java.util.Date;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -9,14 +11,9 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
 
-import java.util.Date;
+public class HeartBeatClientHandler extends ChannelInboundHandlerAdapter {
 
-/**
- * 
- * @author bazingaLyncc 描述：客户端的第一个自定义的inbound处理器 时间 2016年5月3日
- */
-public class BaseClientHandler extends ChannelInboundHandlerAdapter {
-
+    
     private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled.unreleasableBuffer(Unpooled.copiedBuffer("Heartbeat",
             CharsetUtil.UTF_8));
     
@@ -26,19 +23,20 @@ public class BaseClientHandler extends ChannelInboundHandlerAdapter {
     
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("启动时间是："+new Date());
-        System.out.println("BaseClient1Handler channelActive");
+        System.out.println("激活时间是："+new Date());
+        System.out.println("HeartBeatClientHandler channelActive");
         ctx.fireChannelActive();
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("BaseClient1Handler channelInactive");
+        System.out.println("停止时间是："+new Date());
+        System.out.println("HeartBeatClientHandler channelInactive");
     }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        System.out.println("触发时间："+new Date());
+        System.out.println("循环触发时间："+new Date());
         if (evt instanceof IdleStateEvent) {
             IdleStateEvent event = (IdleStateEvent) evt;
             if (event.state() == IdleState.WRITER_IDLE) {
@@ -61,5 +59,4 @@ public class BaseClientHandler extends ChannelInboundHandlerAdapter {
         }
         ReferenceCountUtil.release(msg);
     }
-
 }

@@ -11,38 +11,59 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.timeout.IdleStateHandler;
+
+import java.util.concurrent.TimeUnit;
 
 public class BaseClient {
-    
-    static final String HOST = System.getProperty("host", "127.0.0.1");
-    static final int PORT = Integer.parseInt(System.getProperty("port", "8080"));
-    static final int SIZE = Integer.parseInt(System.getProperty("size", "256"));
 
-    public static void main(String[] args) throws Exception {
-
+    public void connect(int port, String host) throws Exception {
+        ChannelFuture future = null;
         // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
-        try {
-            Bootstrap b = new Bootstrap();
-            b.group(group)
-             .channel(NioSocketChannel.class)
-             .option(ChannelOption.TCP_NODELAY, true)
-             .handler(new ChannelInitializer<SocketChannel>() {
-                 @Override
-                 public void initChannel(SocketChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     p.addLast("decoder", new StringDecoder());
-                     p.addLast("encoder", new StringEncoder());
-                     p.addLast(new BaseClientHandler());
-                 }
-             });
+        Bootstrap b = new Bootstrap().group(group).channel(NioSocketChannel.class)
+                .option(ChannelOption.TCP_NODELAY, true).handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    public void initChannel(SocketChannel ch) throws Exception {
+                        ChannelPipeline p = ch.pipeline();
+                        p.addLast("decoder", new StringDecoder());
+                        p.addLast("encoder", new StringEncoder());
+                        p.addLast("ping", new IdleStateHandler(0, 4, 0, TimeUnit.SECONDS));
+                        p.addLast(new BaseClientHandler());
+                    }
+                });
 
-            ChannelFuture future = b.connect(HOST, PORT).sync();
+        try {
+            future = b.connect(host, port).sync();
             future.channel().writeAndFlush("Hello Netty Server ,I am a common client");
             future.channel().closeFuture().sync();
         } finally {
-            group.shutdownGracefully();
+//            group.shutdownGracefully();
+            if (null != future) {
+                if (future.channel() != null && future.channel().isOpen()) {
+                    future.channel().close();
+                }
+            }
+            System.out.println("准备重连");
+            connect(port, host);
+            System.out.println("重连成功");
         }
+    }
+
+    /**
+     * @param args
+     * @throws Exception
+     */
+    public static void main(String[] args) throws Exception {
+        int port = 8080;
+        if (args != null && args.length > 0) {
+            try {
+                port = Integer.valueOf(args[0]);
+            } catch (NumberFormatException e) {
+                // 采用默认值
+            }
+        }
+        new BaseClient().connect(port, "127.0.0.1");
     }
 
 }

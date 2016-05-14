@@ -1,4 +1,4 @@
-package com.lyncc.netty.heartbeat;
+package com.lyncc.netty.heartbeats;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -10,16 +10,18 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-public class BaseServer {
-
-    private int port;
+public class HeartBeatServer {
     
-    public BaseServer(int port) {
+private int port;
+    
+    public HeartBeatServer(int port) {
         this.port = port;
     }
     
@@ -27,19 +29,13 @@ public class BaseServer {
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
-            ServerBootstrap sbs = new ServerBootstrap().group(bossGroup,workerGroup).channel(NioServerSocketChannel.class).localAddress(new InetSocketAddress(port))
+            ServerBootstrap sbs = new ServerBootstrap().group(bossGroup,workerGroup).channel(NioServerSocketChannel.class).handler(new LoggingHandler(LogLevel.INFO)).localAddress(new InetSocketAddress(port))
                     .childHandler(new ChannelInitializer<SocketChannel>() {
-                        
-                        private static final int READ_IDEL_TIME_OUT = 5; // 读超时
-                        private static final int WRITE_IDEL_TIME_OUT = 0;// 写超时
-                        private static final int ALL_IDEL_TIME_OUT = 0; // 所有超时
-                        
                         protected void initChannel(SocketChannel ch) throws Exception {
-                            ch.pipeline().addLast(new IdleStateHandler(READ_IDEL_TIME_OUT,
-                                    WRITE_IDEL_TIME_OUT, ALL_IDEL_TIME_OUT, TimeUnit.SECONDS));
+                            ch.pipeline().addLast(new IdleStateHandler(5, 0, 0, TimeUnit.SECONDS));
                             ch.pipeline().addLast("decoder", new StringDecoder());
                             ch.pipeline().addLast("encoder", new StringEncoder());
-                            ch.pipeline().addLast(new BaseServerHandler());
+                            ch.pipeline().addLast(new HeartBeatServerHandler());
                         };
                         
                     }).option(ChannelOption.SO_BACKLOG, 128)   
@@ -62,6 +58,7 @@ public class BaseServer {
         } else {
             port = 8080;
         }
-        new BaseServer(port).start();
+        new HeartBeatServer(port).start();
     }
+
 }
