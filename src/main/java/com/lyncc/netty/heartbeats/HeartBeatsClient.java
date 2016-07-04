@@ -1,7 +1,5 @@
 package com.lyncc.netty.heartbeats;
 
-import java.util.concurrent.TimeUnit;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -17,9 +15,13 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import java.util.concurrent.TimeUnit;
+
 public class HeartBeatsClient {
 
     public void connect(int port, String host) throws Exception {
+        
+        
      // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
         ChannelFuture future = null;

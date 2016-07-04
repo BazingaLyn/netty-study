@@ -10,16 +10,10 @@
 	<name>netty-study</name>
 	<url>http://maven.apache.org</url>
 
-	<repositories>
-		<repository>
-			<id>osc</id>
-			<url>http://maven.oschina.net/content/groups/public/</url>
-		</repository>
-	</repositories>
-
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<version.jackson.core>2.6.3</version.jackson.core>
+		<slf4j.version>1.7.5</slf4j.version>
 	</properties>
 
 	<dependencies>
@@ -28,6 +22,11 @@
 			<artifactId>junit</artifactId>
 			<version>4.10</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>

@@ -19,7 +19,10 @@ public class HelloWorldClient {
     static final int SIZE = Integer.parseInt(System.getProperty("size", "256"));
 
     public static void main(String[] args) throws Exception {
-
+        initChannel();
+    }
+    
+    public static void initChannel() throws InterruptedException{
         // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
         try {
@@ -38,11 +41,12 @@ public class HelloWorldClient {
              });
 
             ChannelFuture future = b.connect(HOST, PORT).sync();
-            future.channel().writeAndFlush("Hello Netty Server ,I am a common client");
+            future.channel().writeAndFlush("hello world");
             future.channel().closeFuture().sync();
         } finally {
             group.shutdownGracefully();
         }
+    
     }
 
 }

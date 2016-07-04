@@ -25,11 +25,13 @@ public class HelloWorldServer {
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
-            ServerBootstrap sbs = new ServerBootstrap().group(bossGroup,workerGroup).channel(NioServerSocketChannel.class).localAddress(new InetSocketAddress(port))
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
+            ServerBootstrap sbs = new ServerBootstrap();
+            sbs.group(bossGroup,workerGroup);
+            sbs.channel(NioServerSocketChannel.class);
+            sbs.localAddress(new InetSocketAddress(port));
+            sbs.childHandler(new ChannelInitializer<SocketChannel>() {
                         
                         protected void initChannel(SocketChannel ch) throws Exception {
-//                            ch.pipeline().addLast("framer", new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()));
                             ch.pipeline().addLast("decoder", new StringDecoder());
                             ch.pipeline().addLast("encoder", new StringEncoder());
                             ch.pipeline().addLast(new HelloWorldServerHandler());

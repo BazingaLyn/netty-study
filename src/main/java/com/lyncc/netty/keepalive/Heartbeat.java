@@ -18,6 +18,7 @@ public class Heartbeat extends SimpleChannelInboundHandler<KeepAliveMessage>{
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, KeepAliveMessage msg) throws Exception {
+        
         System.out.println(ctx.channel().remoteAddress() + " Say : sn=" + msg.getSn()+",reqcode="+msg.getReqCode());
         
         if(Utils.notEmpty(msg.getSn())&&msg.getReqCode()==1){
