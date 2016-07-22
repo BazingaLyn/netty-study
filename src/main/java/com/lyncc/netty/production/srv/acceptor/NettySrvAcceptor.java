@@ -1,4 +1,4 @@
-package com.lyncc.netty.production;
+package com.lyncc.netty.production.srv.acceptor;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBufAllocator;
