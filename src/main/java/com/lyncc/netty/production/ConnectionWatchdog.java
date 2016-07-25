@@ -13,8 +13,6 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 
-import java.net.SocketAddress;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,15 +23,17 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
 
     private final Bootstrap bootstrap;
     private final Timer timer;
-    private final SocketAddress remoteAddress;
+    private final int port;
+    private final String host;
 
     private volatile boolean reconnect = true;
     private int attempts;
 
-    public ConnectionWatchdog(Bootstrap bootstrap, Timer timer, SocketAddress remoteAddress) {
+    public ConnectionWatchdog(Bootstrap bootstrap, Timer timer, int port,String host) {
         this.bootstrap = bootstrap;
         this.timer = timer;
-        this.remoteAddress = remoteAddress;
+        this.port = port;
+        this.host = host;
     }
 
     public boolean isReconnect() {
@@ -54,6 +54,9 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
         ctx.fireChannelActive();
     }
 
+    /**
+     * 因为链路断掉之后，会触发channelInActive方法，进行重连
+     */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         boolean doReconnect = reconnect;
@@ -65,7 +68,7 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
             timer.newTimeout(this, timeout, MILLISECONDS);
         }
 
-        logger.warn("Disconnects with {}, address: {}, reconnect: {}.", ctx.channel(), remoteAddress, doReconnect);
+        logger.warn("Disconnects with {}, port: {},host {}, reconnect: {}.", ctx.channel(), port,host, doReconnect);
 
         ctx.fireChannelInactive();
     }
@@ -81,7 +84,7 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
                     ch.pipeline().addLast(handlers());
                 }
             });
-            future = bootstrap.connect(remoteAddress);
+            future = bootstrap.connect(host,port);
         }
 
         future.addListener(new ChannelFutureListener() {
@@ -89,7 +92,7 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
             public void operationComplete(ChannelFuture f) throws Exception {
                 boolean succeed = f.isSuccess();
 
-                logger.warn("Reconnects with {}, {}.", remoteAddress, succeed ? "succeed" : "failed");
+                logger.warn("Reconnects with {}, {}.", host+":"+port, succeed ? "succeed" : "failed");
 
                 if (!succeed) {
                     f.channel().pipeline().fireChannelInactive();

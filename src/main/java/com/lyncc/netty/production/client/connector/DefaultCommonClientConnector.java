@@ -23,11 +23,10 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.ReplayingDecoder;
+import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.HashedWheelTimer;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -41,12 +40,23 @@ import com.lyncc.netty.production.common.NativeSupport;
 import com.lyncc.netty.production.common.exception.ConnectFailedException;
 import com.lyncc.netty.production.srv.acceptor.AcknowledgeEncoder;
 
+/**
+ * 
+ * @author BazingaLyn
+ * @description 默认的一些比较常用的client的配置
+ * @time 2016年7月22日14:54:37
+ * @modifytime
+ */
 public class DefaultCommonClientConnector extends NettyClientConnector {
 	
+	//每个连接维护一个channel
 	private volatile Channel channel;
 	
+	//信息处理的handler
 	private final MessageHandler handler = new MessageHandler();
+	//编码
     private final MessageEncoder encoder = new MessageEncoder();
+    //ack
     private final AcknowledgeEncoder ackEncoder = new AcknowledgeEncoder();
 	
 	protected final HashedWheelTimer timer = new HashedWheelTimer(new ThreadFactory() {
@@ -83,15 +93,17 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
 		
 		final Bootstrap boot = bootstrap();
 		
-        final SocketAddress socketAddress = InetSocketAddress.createUnresolved(host, port);
-
         // 重连watchdog
-        final ConnectionWatchdog watchdog = new ConnectionWatchdog(boot, timer, socketAddress) {
+        final ConnectionWatchdog watchdog = new ConnectionWatchdog(boot, timer, port,host) {
 
             public ChannelHandler[] handlers() {
                 return new ChannelHandler[] {
+                		//将自己[ConnectionWatchdog]装载到handler链中，当链路断掉之后，会触发ConnectionWatchdog #channelInActive方法
+                		
                         this,
+                        //每隔30s的时间触发一次userEventTriggered的方法，并且指定IdleState的状态位是WRITER_IDLE
                         new IdleStateHandler(0, 30, 0, TimeUnit.SECONDS),
+                        //实现userEventTriggered方法，并在state是WRITER_IDLE的时候发送一个心跳包到sever端，告诉server端我还活着
                         idleStateTrigger,
                         new MessageDecoder(),
                         encoder,

@@ -12,6 +12,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+
 public class HelloWorldClient {
     
     static final String HOST = System.getProperty("host", "127.0.0.1");
@@ -39,8 +42,9 @@ public class HelloWorldClient {
                      p.addLast(new HelloWorldClientHandler());
                  }
              });
-
-            ChannelFuture future = b.connect(HOST, PORT).sync();
+//            SocketAddress socketAddress = InetSocketAddress.createUnresolved(address.getHost(), address.getPort());
+            SocketAddress socketAddress =  new InetSocketAddress(HOST, PORT);
+            ChannelFuture future = b.connect(socketAddress).sync();
             future.channel().writeAndFlush("hello world");
             future.channel().closeFuture().sync();
         } finally {

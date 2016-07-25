@@ -28,7 +28,6 @@ public class HelloWorldServer {
             ServerBootstrap sbs = new ServerBootstrap();
             sbs.group(bossGroup,workerGroup);
             sbs.channel(NioServerSocketChannel.class);
-            sbs.localAddress(new InetSocketAddress(port));
             sbs.childHandler(new ChannelInitializer<SocketChannel>() {
                         
                         protected void initChannel(SocketChannel ch) throws Exception {
