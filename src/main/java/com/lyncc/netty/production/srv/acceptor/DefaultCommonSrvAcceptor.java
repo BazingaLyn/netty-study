@@ -271,7 +271,7 @@ public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
     	
     	@Override
     	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-    		logger.info((String) msg);
+    		logger.info(((Message) msg).toString());
     		super.channelRead(ctx, msg);
     	}
 

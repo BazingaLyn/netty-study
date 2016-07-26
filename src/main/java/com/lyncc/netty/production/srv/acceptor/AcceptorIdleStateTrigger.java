@@ -1,15 +1,13 @@
 package com.lyncc.netty.production.srv.acceptor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.lyncc.netty.production.ConnectionWatchdog;
-
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
