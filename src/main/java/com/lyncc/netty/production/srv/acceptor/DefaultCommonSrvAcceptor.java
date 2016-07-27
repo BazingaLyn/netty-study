@@ -1,22 +1,26 @@
 package com.lyncc.netty.production.srv.acceptor;
 
-import static com.lyncc.netty.production.common.JProtocolHeader.ACK;
-import static com.lyncc.netty.production.common.JProtocolHeader.HEARTBEAT;
-import static com.lyncc.netty.production.common.JProtocolHeader.MAGIC;
-import static com.lyncc.netty.production.common.JProtocolHeader.OFFLINE_NOTICE;
-import static com.lyncc.netty.production.common.JProtocolHeader.PUBLISH_CANCEL_SERVICE;
-import static com.lyncc.netty.production.common.JProtocolHeader.PUBLISH_SERVICE;
-import static com.lyncc.netty.production.common.JProtocolHeader.SUBSCRIBE_SERVICE;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.HEARTBEAT;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.MAGIC;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.REQUEST;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_1;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_2;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_3;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_4;
 import static com.lyncc.netty.production.serializer.SerializerHolder.serializerImpl;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -36,9 +40,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.lyncc.netty.production.common.Acknowledge;
-import com.lyncc.netty.production.common.JProtocolHeader;
 import com.lyncc.netty.production.common.Message;
 import com.lyncc.netty.production.common.NativeSupport;
+import com.lyncc.netty.production.common.NettyCommonProtocol;
+import com.lyncc.netty.production.common.NettyEvent;
+import com.lyncc.netty.production.common.NettyEventType;
 
 /**
  * 
@@ -47,21 +53,29 @@ import com.lyncc.netty.production.common.NativeSupport;
  * @time 2016年7月20日20:49:53
  * @modifytime
  */
-public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
+public class DefaultCommonSrvAcceptor extends DefaultSrvAcceptor {
 	
+
 	private static final Logger logger = LoggerFactory.getLogger(DefaultCommonSrvAcceptor.class);
 	
+	//acceptor的trigger
 	private final AcceptorIdleStateTrigger idleStateTrigger = new AcceptorIdleStateTrigger();
 	
+	//message的编码器
 	private final MessageEncoder encoder = new MessageEncoder();
 	
+	//Ack的编码器
 	private final AcknowledgeEncoder ackEncoder = new AcknowledgeEncoder();
 	
+	//SimpleChannelInboundHandler类型的handler只处理@{link Message}类型的数据
 	private final MessageHandler handler = new MessageHandler();
+	
+	private final ChannelEventListener channelEventListener;
 
-	public DefaultCommonSrvAcceptor(int port) {
+	public DefaultCommonSrvAcceptor(int port,ChannelEventListener channelEventListener) {
 		super(new InetSocketAddress(port));
 		this.init();
+		this.channelEventListener = channelEventListener;
 	}
 	
 	@Override
@@ -148,9 +162,11 @@ public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
                 		new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS),
                 		//因为我们在client端设置了每隔30s会发送一个心跳包过来，如果60s都没有收到心跳，则说明链路发生了问题
                         idleStateTrigger,
+                        //message的解码器
                         new MessageDecoder(),
                         encoder,
                         ackEncoder,
+                        new NettyConnetManageHandler(),
                         handler);
             }
         });
@@ -158,14 +174,40 @@ public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
 		return boot.bind(localAddress);
 	}
 	
+	/**
+	 * 解码器，继承于ReplayingDecoder
+	 * @author BazingaLyn
+	 * @description 
+	 * @time
+	 * @modifytime
+	 */
+	/**
+     * **************************************************************************************************
+     *                                          Protocol
+     *  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+     *       2   │   1   │    1   │     8     │      4      │
+     *  ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
+     *           │       │        │           │             │
+     *  │  MAGIC   Sign    Status   Invoke Id   Body Length                   Body Content              │
+     *           │       │        │           │             │
+     *  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+     *
+     * 消息头16个字节定长
+     * = 2 // MAGIC = (short) 0xbabe
+     * + 1 // 消息标志位, 用来表示消息类型
+     * + 1 // 空
+     * + 8 // 消息 id long 类型
+     * + 4 // 消息体body长度, int类型
+     */
 	static class MessageDecoder extends ReplayingDecoder<MessageDecoder.State> {
 
+		//构造函数 设置初始的枚举类型是什么
         public MessageDecoder() {
             super(State.HEADER_MAGIC);
         }
 
         // 协议头
-        private final JProtocolHeader header = new JProtocolHeader();
+        private final NettyCommonProtocol header = new NettyCommonProtocol();
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -189,25 +231,17 @@ public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
                     switch (header.sign()) {
                         case HEARTBEAT:
                             break;
-                        case PUBLISH_SERVICE:
-                        case PUBLISH_CANCEL_SERVICE:
-                        case SUBSCRIBE_SERVICE:
-                        case OFFLINE_NOTICE: {
+                        case REQUEST:
+                        case SERVICE_1:
+                        case SERVICE_2:
+                        case SERVICE_3:
+                        case SERVICE_4: {
                             byte[] bytes = new byte[header.bodyLength()];
                             in.readBytes(bytes);
 
                             Message msg = serializerImpl().readObject(bytes, Message.class);
                             msg.sign(header.sign());
                             out.add(msg);
-
-                            break;
-                        }
-                        case ACK: {
-                            byte[] bytes = new byte[header.bodyLength()];
-                            in.readBytes(bytes);
-
-                            Acknowledge ack = serializerImpl().readObject(bytes, Acknowledge.class);
-                            out.add(ack);
 
                             break;
                         }
@@ -267,14 +301,72 @@ public class DefaultCommonSrvAcceptor extends NettySrvAcceptor {
     }
     
     @ChannelHandler.Sharable
-    class MessageHandler extends ChannelInboundHandlerAdapter {
+    class MessageHandler extends SimpleChannelInboundHandler<Message> {
+    	
+		@Override
+		protected void channelRead0(ChannelHandlerContext ctx, Message message) throws Exception {
+			Channel channel = ctx.channel();
+			logger.info(message.toString());
+    		
+    		// 接收到发布信息的时候，要给Client端回复ACK
+			channel.writeAndFlush(new Acknowledge(message.sequence())).addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+		}
+    }
+    
+    class NettyConnetManageHandler extends ChannelDuplexHandler {
     	
     	@Override
-    	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-    		logger.info(((Message) msg).toString());
-    		super.channelRead(ctx, msg);
+    	public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise future) throws Exception {
+    		final String local = localAddress == null ? "UNKNOW" : localAddress.toString();
+            final String remote = remoteAddress == null ? "UNKNOW" : remoteAddress.toString();
+            logger.info("NETTY CLIENT PIPELINE: CONNECT  {} => {}", local, remote);
+    		super.connect(ctx, remoteAddress, localAddress, future);
+    		
+    		if (DefaultCommonSrvAcceptor.this.channelEventListener != null) {
+    			DefaultCommonSrvAcceptor.this.putNettyEvent(new NettyEvent(NettyEventType.CONNECT, remoteAddress
+                    .toString(), ctx.channel()));
+            }
     	}
+    	
+    	@Override
+    	public void disconnect(ChannelHandlerContext ctx, ChannelPromise future) throws Exception {
+    		final String remoteAddress = ctx.channel().remoteAddress().toString();
+            logger.info("NETTY CLIENT PIPELINE: DISCONNECT {}", remoteAddress);
+            super.disconnect(ctx, future);
 
+            if (DefaultCommonSrvAcceptor.this.channelEventListener != null) {
+            	DefaultCommonSrvAcceptor.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress
+                    .toString(), ctx.channel()));
+            }
+    	}
+    	
+    	@Override
+        public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+            final String remoteAddress = ctx.channel().remoteAddress().toString();
+            logger.info("NETTY CLIENT PIPELINE: CLOSE {}", remoteAddress);
+            super.close(ctx, promise);
+
+            if (DefaultCommonSrvAcceptor.this.channelEventListener != null) {
+            	DefaultCommonSrvAcceptor.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress
+                    .toString(), ctx.channel()));
+            }
+        }
+
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            final String remoteAddress = ctx.channel().remoteAddress().toString();
+            logger.warn("NETTY CLIENT PIPELINE: exceptionCaught {}", remoteAddress);
+            logger.warn("NETTY CLIENT PIPELINE: exceptionCaught exception.", cause);
+            if (DefaultCommonSrvAcceptor.this.channelEventListener != null) {
+            	DefaultCommonSrvAcceptor.this.putNettyEvent(new NettyEvent(NettyEventType.EXCEPTION, remoteAddress
+                    .toString(), ctx.channel()));
+            }
+        }
     }
 
+	@Override
+	protected ChannelEventListener getChannelEventListener() {
+		return channelEventListener;
+	}
 }

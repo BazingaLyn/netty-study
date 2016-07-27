@@ -6,7 +6,7 @@ public class SrvAcceptorStartup {
 	
 	public static void main(String[] args) throws InterruptedException {
 		
-		DefaultCommonSrvAcceptor defaultCommonSrvAcceptor = new DefaultCommonSrvAcceptor(20011);
+		DefaultCommonSrvAcceptor defaultCommonSrvAcceptor = new DefaultCommonSrvAcceptor(20011,null);
 		defaultCommonSrvAcceptor.start();
 		
 	}

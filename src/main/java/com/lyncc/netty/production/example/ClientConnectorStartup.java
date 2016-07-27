@@ -1,6 +1,6 @@
 package com.lyncc.netty.production.example;
 
-import static com.lyncc.netty.production.common.JProtocolHeader.PUBLISH_SERVICE;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.REQUEST;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.lyncc.netty.production.client.connector.DefaultCommonClientConnector;
+import com.lyncc.netty.production.client.connector.DefaultCommonClientConnector.MessageNonAck;
 import com.lyncc.netty.production.common.Message;
 import com.lyncc.netty.production.srv.acceptor.DefaultCommonSrvAcceptor;
 
@@ -29,8 +30,9 @@ public class ClientConnectorStartup {
 		Channel channel = clientConnector.connect(20011, "127.0.0.1");
 		User user = new User(1, "dubbo");
 		Message message = new Message();
-		message.sign(PUBLISH_SERVICE);
+		message.sign(REQUEST);
 		message.data(user);
+		//获取到channel发送双方规定的message格式的信息
 		channel.writeAndFlush(message).addListener(new ChannelFutureListener() {
 			
 			public void operationComplete(ChannelFuture future) throws Exception {
@@ -39,6 +41,9 @@ public class ClientConnectorStartup {
 	                } 
 			}
 		});
+		//防止对象处理发生异常的情况
+		MessageNonAck msgNonAck = new MessageNonAck(message, channel);
+		clientConnector.addNeedAckMessageInfo(msgNonAck);
 	}
 	
 	public static class User {

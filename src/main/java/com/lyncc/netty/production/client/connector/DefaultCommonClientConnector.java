@@ -1,16 +1,18 @@
 package com.lyncc.netty.production.client.connector;
 
-import static com.lyncc.netty.production.common.JProtocolHeader.ACK;
-import static com.lyncc.netty.production.common.JProtocolHeader.MAGIC;
-import static com.lyncc.netty.production.common.JProtocolHeader.OFFLINE_NOTICE;
-import static com.lyncc.netty.production.common.JProtocolHeader.PUBLISH_CANCEL_SERVICE;
-import static com.lyncc.netty.production.common.JProtocolHeader.PUBLISH_SERVICE;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.ACK;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.MAGIC;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.RESPONSE;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_1;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_2;
+import static com.lyncc.netty.production.common.NettyCommonProtocol.SERVICE_3;
 import static com.lyncc.netty.production.serializer.SerializerHolder.serializerImpl;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -27,15 +29,20 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.HashedWheelTimer;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lyncc.netty.production.ConnectionWatchdog;
 import com.lyncc.netty.production.common.Acknowledge;
-import com.lyncc.netty.production.common.JProtocolHeader;
 import com.lyncc.netty.production.common.Message;
 import com.lyncc.netty.production.common.NativeSupport;
+import com.lyncc.netty.production.common.NettyCommonProtocol;
 import com.lyncc.netty.production.common.exception.ConnectFailedException;
 import com.lyncc.netty.production.srv.acceptor.AcknowledgeEncoder;
 
@@ -48,6 +55,8 @@ import com.lyncc.netty.production.srv.acceptor.AcknowledgeEncoder;
  */
 public class DefaultCommonClientConnector extends NettyClientConnector {
 	
+	private static final Logger logger = LoggerFactory.getLogger(DefaultCommonClientConnector.class);
+	
 	//每个连接维护一个channel
 	private volatile Channel channel;
 	
@@ -57,6 +66,8 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
     private final MessageEncoder encoder = new MessageEncoder();
     //ack
     private final AcknowledgeEncoder ackEncoder = new AcknowledgeEncoder();
+    
+    private final ConcurrentMap<Long, MessageNonAck> messagesNonAcks = new ConcurrentHashMap<Long, MessageNonAck>();
 	
 	protected final HashedWheelTimer timer = new HashedWheelTimer(new ThreadFactory() {
 		
@@ -67,6 +78,7 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
 		}
 	});
 	
+	//心跳trigger
 	private final ConnectorIdleStateTrigger idleStateTrigger = new ConnectorIdleStateTrigger();
 
 	public DefaultCommonClientConnector() {
@@ -138,7 +150,11 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
 		
 		@Override
 		public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-			super.channelRead(ctx, msg);
+			
+			if(msg instanceof Acknowledge){
+				logger.info("收到server端的Ack信息，无需再次发送信息");
+				messagesNonAcks.remove(((Acknowledge)msg).sequence());
+			}
 		}
 
     }
@@ -177,24 +193,6 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
         }
     }
     
-    /**
-     * **************************************************************************************************
-     *                                          Protocol
-     *  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-     *       2   │   1   │    1   │     8     │      4      │
-     *  ├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤
-     *           │       │        │           │             │
-     *  │  MAGIC   Sign    Status   Invoke Id   Body Length                   Body Content              │
-     *           │       │        │           │             │
-     *  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
-     *
-     * 消息头16个字节定长
-     * = 2 // MAGIC = (short) 0xbabe
-     * + 1 // 消息标志位, 用来表示消息类型
-     * + 1 // 空
-     * + 8 // 消息 id long 类型
-     * + 4 // 消息体body长度, int类型
-     */
     static class MessageDecoder extends ReplayingDecoder<MessageDecoder.State> {
 
         public MessageDecoder() {
@@ -202,7 +200,7 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
         }
 
         // 协议头
-        private final JProtocolHeader header = new JProtocolHeader();
+        private final NettyCommonProtocol header = new NettyCommonProtocol();
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -224,9 +222,10 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
                     checkpoint(State.BODY);
                 case BODY:
                     switch (header.sign()) {
-                        case PUBLISH_SERVICE:
-                        case PUBLISH_CANCEL_SERVICE:
-                        case OFFLINE_NOTICE: {
+                    	case RESPONSE:
+                        case SERVICE_1:
+                        case SERVICE_2:
+                        case SERVICE_3: {
                             byte[] bytes = new byte[header.bodyLength()];
                             in.readBytes(bytes);
 
@@ -272,5 +271,63 @@ public class DefaultCommonClientConnector extends NettyClientConnector {
 	protected EventLoopGroup initEventLoopGroup(int nWorkers, ThreadFactory workerFactory) {
 		return NativeSupport.isSupportNativeET() ? new EpollEventLoopGroup(nWorkers, workerFactory) : new NioEventLoopGroup(nWorkers, workerFactory);
 	}
+	
+	public static class MessageNonAck {
+        private final long id;
+
+        private final Message msg;
+        private final Channel channel;
+        private final long timestamp = System.currentTimeMillis();
+
+        public MessageNonAck(Message msg, Channel channel) {
+            this.msg = msg;
+            this.channel = channel;
+
+            id = msg.sequence();
+        }
+    }
+	
+	private class AckTimeoutScanner implements Runnable {
+
+        public void run() {
+            for (;;) {
+                try {
+                    for (MessageNonAck m : messagesNonAcks.values()) {
+                        if (System.currentTimeMillis() - m.timestamp > SECONDS.toMillis(10)) {
+
+                            // 移除
+                            if (messagesNonAcks.remove(m.id) == null) {
+                                continue;
+                            }
+
+                            if (m.channel.isActive()) {
+                            	logger.warn("准备重新发送信息");
+                                MessageNonAck msgNonAck = new MessageNonAck(m.msg, m.channel);
+                                messagesNonAcks.put(msgNonAck.id, msgNonAck);
+                                m.channel.writeAndFlush(m.msg)
+                                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+                            }
+                        }
+                    }
+
+                    Thread.sleep(300);
+                } catch (Throwable t) {
+                    logger.error("An exception has been caught while scanning the timeout acknowledges {}.", t);
+                }
+            }
+        }
+    }
+	
+	{
+        Thread t = new Thread(new AckTimeoutScanner(), "ack.timeout.scanner");
+        t.setDaemon(true);
+        t.start();
+    }
+
+
+	public void addNeedAckMessageInfo(MessageNonAck msgNonAck) {
+		 messagesNonAcks.put(msgNonAck.id, msgNonAck);
+	}
+	
 
 }

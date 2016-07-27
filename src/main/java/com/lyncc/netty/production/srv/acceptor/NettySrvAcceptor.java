@@ -60,8 +60,8 @@ public abstract class NettySrvAcceptor implements SrvAcceptor {
     
     //netty的元素初始化
     protected void init(){
-    	ThreadFactory bossFactory = new DefaultThreadFactory("jupiter.acceptor.boss");
-        ThreadFactory workerFactory = new DefaultThreadFactory("jupiter.acceptor.worker");
+    	ThreadFactory bossFactory = new DefaultThreadFactory("netty.acceptor.boss");
+        ThreadFactory workerFactory = new DefaultThreadFactory("netty.acceptor.worker");
         
         boss = initEventLoopGroup(1, bossFactory);
         
